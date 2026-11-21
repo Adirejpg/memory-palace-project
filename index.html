@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#14161c">
+<title>Noun Cards</title>
+<meta name="apple-mobile-web-app-title" content="Noun Cards">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{
+    --bg:#14161c; --panel:#1d2029; --line:#2c303c; --card:#f6f1e7; --ink:#1b1b1f; --muted:#8a8f9c;
+    --text:#e9e9ee; --accent:#e0a24a; --good:#5cb880; --mid:#d9b35b; --bad:#d9655b;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  button{touch-action:manipulation;-webkit-user-select:none;user-select:none;font-family:inherit}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  .screen{display:none;flex-direction:column;min-height:100vh;min-height:100dvh;padding:20px;max-width:560px;margin:0 auto}
+  .screen.active{display:flex}
+  h1{font-size:1.5rem;margin:12px 0 4px}
+  h2{font-size:1.05rem;margin:22px 0 10px}
+  p.sub{color:var(--muted);margin:0 0 18px;line-height:1.4}
+  .label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:18px 0 8px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{flex:1;min-width:56px;padding:13px 0;border-radius:12px;border:1px solid var(--line);background:var(--panel);
+    color:var(--text);font-size:1rem;font-weight:600;cursor:pointer}
+  .chip.sm{padding:9px 0;font-size:.9rem;border-radius:10px}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#1b1b1f}
+  .btn{width:100%;padding:16px;border-radius:14px;border:none;font-size:1.08rem;font-weight:700;cursor:pointer;margin-top:12px}
+  .btn.primary{background:var(--accent);color:#1b1b1f}
+  .btn.ghost{background:var(--panel);color:var(--text);border:1px solid var(--line)}
+  .spacer{flex:1;min-height:12px}
+  .row{display:flex;gap:10px}
+  .row .btn{margin-top:12px}
+  .back{background:none;border:none;color:var(--muted);font-size:1rem;cursor:pointer;padding:6px 0;align-self:flex-start}
+  .note{color:var(--muted);font-size:.8rem;text-align:center;margin-top:10px;min-height:1em}
+
+  /* stat tiles */
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .tile .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+  .tile .v{font-size:1.45rem;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums}
+  .tile .d{font-size:.78rem;color:var(--muted);margin-top:2px}
+  .tile .d.up{color:var(--good)} .tile .d.down{color:var(--bad)}
+  .quick{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;line-height:1.55;font-size:.92rem;color:var(--muted)}
+  .quick b{color:var(--text)}
+
+  /* Study */
+  .topbar{display:flex;justify-content:space-between;align-items:center;font-variant-numeric:tabular-nums}
+  .topbar .count{font-size:1.1rem;font-weight:700}
+  .topbar .timer{color:var(--muted);font-size:1.1rem;min-width:52px;text-align:right}
+  .x{background:none;border:none;color:var(--muted);font-size:1rem;cursor:pointer;padding:6px}
+  .progress{height:4px;background:#2a2e3a;border-radius:2px;margin:12px 0 0;overflow:hidden}
+  .progress div{height:100%;background:var(--accent);width:0;transition:width .2s}
+  .stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;touch-action:pan-y;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  .card{width:100%;aspect-ratio:3/4;max-height:60vh;background:var(--card);color:var(--ink);border-radius:22px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 18px 40px rgba(0,0,0,.45);
+    position:relative;will-change:transform;-webkit-user-select:none;-webkit-touch-callout:none}
+  .card .num{position:absolute;top:18px;left:22px;font-size:1rem;color:#9a917f;font-weight:700}
+  .card .word{font-size:clamp(2.2rem,11vw,3.6rem);font-weight:800;text-transform:capitalize;text-align:center;padding:0 16px;word-break:break-word}
+  .card.anim{transition:transform .22s ease, opacity .22s ease}
+  .hint{text-align:center;color:var(--muted);font-size:.85rem;margin:8px 0}
+  .nav{display:flex;gap:10px}
+  .nav .btn{margin-top:0}
+
+  /* Recall */
+  textarea{width:100%;min-height:40vh;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;
+    padding:14px;font-size:17px;line-height:1.6;resize:vertical;font-family:inherit}
+  .rtimer{color:var(--muted);font-variant-numeric:tabular-nums;margin-bottom:8px}
+
+  /* Results */
+  .score{font-size:2.6rem;font-weight:800;margin:4px 0 0}
+  .results{list-style:none;padding:0;margin:0}
+  .results li{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:6px;background:var(--panel)}
+  .results li.ok{border-left:4px solid var(--good)}
+  .results li.miss{border-left:4px solid var(--bad)}
+  .results .you{color:var(--muted);font-size:.9rem;text-align:right}
+  details{margin-top:6px}
+  summary{cursor:pointer;color:var(--muted);padding:8px 0}
+
+  /* Stats */
+  .chart{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 12px 8px}
+  .chart svg{width:100%;height:auto;display:block}
+  .chart .cap{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-top:4px}
+  .log{list-style:none;padding:0;margin:0}
+  .log li{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;
+    display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center}
+  .log .when{font-size:.8rem;color:var(--muted)}
+  .log .sc{font-weight:800;font-size:1.15rem;text-align:right;font-variant-numeric:tabular-nums}
+  .log .meta{font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+  .log .del{background:none;border:none;color:var(--muted);font-size:.8rem;cursor:pointer;padding:4px;justify-self:end}
+  .empty{color:var(--muted);text-align:center;padding:30px 0}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<section class="screen active" id="setup">
+  <h1>Noun Cards</h1>
+  <p class="sub">Swipe through random nouns, place each one in your memory palace, then test your recall.</p>
+
+  <div class="label">How many words</div>
+  <div class="chips" id="counts">
+    <button class="chip on" data-n="10">10</button>
+    <button class="chip" data-n="20">20</button>
+    <button class="chip" data-n="30">30</button>
+    <button class="chip" data-n="50">50</button>
+  </div>
+
+  <div class="label">At a glance</div>
+  <div class="quick" id="quick">Loading your sessions…</div>
+
+  <div class="spacer"></div>
+  <button class="btn primary" id="startBtn">Start</button>
+  <button class="btn ghost" id="statsBtn">📊 Stats &amp; session log</button>
+  <div class="note" id="syncNote"></div>
+</section>
+
+<!-- STUDY -->
+<section class="screen" id="study">
+  <div class="topbar">
+    <button class="x" id="quitBtn">✕ Quit</button>
+    <span class="count" id="count">1 / 10</span>
+    <span class="timer" id="timer">0:00</span>
+  </div>
+  <div class="progress"><div id="bar"></div></div>
+  <div class="stage" id="stage">
+    <div class="card" id="card"><span class="num" id="cardNum">1</span><span class="word" id="word"></span></div>
+  </div>
+  <div class="hint">Swipe left for next · right to go back</div>
+  <div class="nav">
+    <button class="btn ghost" id="prevBtn">← Back</button>
+    <button class="btn primary" id="nextBtn">Next →</button>
+  </div>
+</section>
+
+<!-- RECALL -->
+<section class="screen" id="recall">
+  <h1>Recall</h1>
+  <p class="sub" id="recallSub"></p>
+  <div class="rtimer">Recall time: <span id="rtimer">0:00</span></div>
+  <textarea id="answers" placeholder="first word&#10;second word&#10;…" autocapitalize="none" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+  <div class="spacer"></div>
+  <button class="btn primary" id="checkBtn">Check &amp; log session</button>
+  <button class="btn ghost" id="revealBtn">Just show me the list (not logged)</button>
+</section>
+
+<!-- RESULTS -->
+<section class="screen" id="results">
+  <h1>Session log</h1>
+  <div class="score" id="score"></div>
+  <p class="sub" id="scoreSub"></p>
+  <div class="tiles" id="sessionTiles"></div>
+  <div class="note" id="saveNote"></div>
+  <details id="wordDetails" open>
+    <summary>Word by word</summary>
+    <ul class="results" id="resultList"></ul>
+  </details>
+  <div class="spacer"></div>
+  <button class="btn primary" id="againBtn">New set</button>
+  <div class="row">
+    <button class="btn ghost" id="sameBtn">Retry same</button>
+    <button class="btn ghost" id="toStatsBtn">Stats</button>
+  </div>
+  <button class="btn ghost" id="homeBtn">Home</button>
+</section>
+
+<!-- STATS -->
+<section class="screen" id="stats">
+  <button class="back" id="statsBack">← Back</button>
+  <h1>Your stats</h1>
+
+  <div class="label">Sessions</div>
+  <div class="chips" id="rangeChips">
+    <button class="chip sm on" data-r="5">Last 5</button>
+    <button class="chip sm" data-r="10">Last 10</button>
+    <button class="chip sm" data-r="30">Last 30</button>
+    <button class="chip sm" data-r="0">All</button>
+  </div>
+  <div class="label">Set size</div>
+  <div class="chips" id="sizeChips">
+    <button class="chip sm on" data-s="0">All</button>
+    <button class="chip sm" data-s="10">10</button>
+    <button class="chip sm" data-s="20">20</button>
+    <button class="chip sm" data-s="30">30</button>
+    <button class="chip sm" data-s="50">50</button>
+  </div>
+
+  <div id="statsBody"></div>
+</section>
+
+<script>
+const NOUNS = `aardvark accordion acorn acrobat airplane airship alligator almond ambulance anchor angel antelope anvil ape apple apricot apron aquarium archer arena armadillo armchair arrow ashtray astronaut attic avalanche avocado awning axe axle baboon backpack bacon badge badger bagel bagpipe baguette baker balcony ballerina balloon bamboo banana bandage bandana banjo banner barbell barber barge barn barometer barrel barricade baseball basement basin basket bassoon bat bathrobe bathroom bathtub baton battery bay beach beacon beads beanbag bear beaver bed bedroom bedspread bee beehive beet beetle bell belt bench beret bib bicycle bikini binoculars bird birdcage biscuit bison blade blanket blazer blender blimp blouse blowtorch blueberry blueprint boar boat bobcat bolt bomb bone bonfire bonnet book bookcase bookmark boomerang boot bottle boulder bouquet bow bowl bowtie box boxer bracelet brain branch bread brick bridge briefcase broccoli broom broomstick brownie brush bubble bucket buckle buffalo buggy bulb bull bulldozer bunkbed bunker bunny buoy burrito bus butler butter butterfly button cab cabbage cabin cabinet cactus cafe cage cake calculator calendar camel camera candle candlestick candy cannon canoe cantaloupe canteen canyon cap cape capsule captain car caramel caravan cardboard cardigan carousel carpet carriage carrot cart carton casino cassette castle cat catapult caterpillar cathedral cauldron cauliflower cave celery cello cellphone cereal chain chair chalk chalkboard chameleon chandelier chapel chariot checkbook cheese cheetah chef cherry chess chicken chili chimney chimpanzee chipmunk chisel chocolate cigar cinnamon clam clarinet classroom cliff clipboard cloak clock closet clothespin cloud clown coaster coat cobra coconut coffin cogwheel coin colander collar colosseum comb comet compass confetti convertible cookie coral cork corkscrew corn corset costume cot cottage couch cougar courthouse cow cowboy coyote crab cradle cranberry crane crate crater crayon crib crocodile croissant crow crowbar crown crutch crypt crystal cub cube cucumber cufflink cup cupboard cupcake curtain cushion custard cylinder cymbal dachshund dagger dalmatian dam dart dartboard date deer dentist desert desk detective dial diamond diaper dice didgeridoo dinosaur dishwasher dock doctor dodo dolphin domino donkey donut door doorbell doormat dove dragon dragonfly dress dresser drill drum drummer duck dumbbell dumpling dune dungeon dustpan dynamite eagle earmuffs earring easel eel egg eggplant elephant elevator elf elk emerald emu engine envelope eraser extinguisher eye eyeglasses factory falafel falcon fan farm farmer faucet feather fedora fence fern ferret ferry fig filter finch fire firefighter firefly fireplace firetruck fireworks fish fisherman fjord flag flamingo flare flashcard flashlight flea flipflop flower flowerpot flute fly football forest fork forklift fortress fossil fountain fox fridge fries frisbee frog funnel fuse futon garage garden gardener garlic gavel gazebo gazelle gear gecko gem genie gerbil geyser ghost giant ginger gingerbread giraffe glacier gladiator glass glitter globe glove goat goblet goblin goggles gold goldfish gondola gong goose gopher gorilla gown grapefruit grapes grasshopper grater gravy greenhouse grenade grill groundhog guava guillotine guitar gym hail hairbrush hairdryer ham hamburger hammer hammock hamster handcuffs handkerchief hangar hanger harbor hare harmonica harness harp harpsichord hat hawk hazelnut headband headphones heater hedgehog helicopter helmet hen heron highchair hinge hippo honey hoodie hook hoop horn hornet horse horseshoe hose hospital hotdog hotel hourglass hovercraft hummingbird hummus hunter hut hyena iceberg igloo iguana impala inkwell iron island jackal jacket jackhammer jaguar jail jam janitor jar jay jeans jeep jelly jellyfish jester jet jewel jigsaw joystick judge juggler jukebox jungle kangaroo kayak kazoo kebab kennel ketchup kettle key keyboard keychain keytar kiln kilt kimono king kitchen kite kitten kiwi knapsack knife knight knob koala label laboratory ladder ladle ladybug lagoon lake lamb lamp lantern laptop lark lasagna lasso latch lava lawnmower leaf leash lemon lemur lens leopard leotard letter lettuce lever library lifeguard lightbulb lighthouse lightning lime limousine lion lipstick lizard llama lobby lobster lock locker lollipop loom lunchbox lute lynx macaron macaw magician magnet magpie mailbox mailman mallet mammoth manatee mandolin mango mannequin mansion mantis map maraca marble market marshmallow mask match mattress maze meadow meatball medal meerkat megaphone melon mermaid meteor metronome microphone microscope microwave mill miner minivan mink mirror mitten mittens mixer moccasin modem mole monastery monitor monk monkey moon moose mop moped mortar mosaic mosquito moss moth motorcycle mountain mouse mousetrap muffin mule mummy museum mushroom mustard muzzle nacho nail napkin narwhal necklace needle nest net newspaper newt ninja noodle notebook nugget nurse nutcracker nutmeg oar oasis oatmeal oboe observatory ocean ocelot octopus office olive omelet onion opossum orange orb orca orchid organ ostrich otter oven overalls owl ox oyster paddle padlock pail paintbrush pajamas palace palm pan pancake panda panther papaya paperclip parachute parka parrot parsley passport pasta pastry peach peacock peanut pear pearl peas pebble pecan pedal pelican pen pencil pendulum penguin pepper pepperoni periscope pestle pharaoh pheasant piano pickaxe pickle pie pier pig pigeon piggybank pillar pillow pilot pinata pinball pineapple pinecone pinwheel pipe piranha pirate pistachio pitchfork pizza planet plank plaque plate platypus playground pliers plug plum plumber plunger pocket podium police pomegranate poncho pond pony poodle popcorn popsicle porcupine possum postcard pot potato pretzel priest prince princess printer prison projector propeller prune pub pudding puddle puffin pulley puma pumpkin puppet purse puzzle pyramid python quail quarry quartz queen quiche quill quilt rabbit raccoon racket radiator radio radish raft rainbow raisin rake ram ranch raspberry rat rattle raven ravioli razor recliner reef referee refrigerator reindeer remote restaurant rhino ribbon rice rickshaw ring river robe robin robot rock rocket rooster rope rose rowboat ruby rug ruler runway saddle sailboat sailor salad salamander salami salmon salon salt samurai sand sandal sandals sandbag sandpaper sandwich sapphire sardine sari satchel satellite sausage saw saxophone scale scarecrow scarf school scientist scissors scone scooter scorpion screwdriver scroll scrubber seagull seahorse seal seashell seaweed seesaw shampoo shark sharpener shawl shed sheep shelf shell sheriff shield ship shoe shovel shower shrimp sieve sink skateboard skeleton ski skillet skirt skull skunk skyscraper sled slide slingshot slipper slug smoothie snail snake sneaker snorkel snowflake snowman snowmobile soap sock sofa soldier sombrero soup spaceship spaghetti sparrow spatula speaker spider spinach spinner sponge spoon spotlight spring sprinkler squid squirrel stable stadium stalactite stamp stapler star starfish statue steak steamroller stethoscope sticker stiletto stingray stool stork storm stove straw strawberry streetcar stroller stump submarine subway suitcase sun sunflower supermarket surgeon sushi suspenders swallow swamp swan sweater swing sword syringe syrup table tablet taco tadpole tailor tambourine tangerine tank tape tarantula taxi teacher teacup teapot teddy telephone telescope temple tent termite theater thermometer thermos thimble thorn thumbtack tiara tide tiger tire tissue toad toast toaster tofu toga toilet tomato tombstone toolbox toothbrush toothpaste toothpick torch tornado tortilla tortoise totem toucan towel tower tractor train tram trampoline tray treasure tree treehouse triangle tricycle tripod troll trolley trombone trophy trout trowel truck truffle trumpet trunk tub tuba tugboat tulip tuna tunic tunnel turban turbine turkey turnip turtle tuxedo twig typewriter ukulele umbrella unicorn unicycle uniform urn vacuum valley valve vampire van vanilla vase vault veil vest viking vine violin visor volcano vulture waffle wagon waistcoat waiter wallet walnut walrus wand wardrobe warehouse wasabi washer wasp watch waterfall watermelon wave weasel weed wetsuit whale wheel wheelbarrow whisk whistle wig willow windmill windowsill witch wizard wok wolf woodpecker worm wreath wrench wristband xylophone yacht yak yogurt yoyo zebra zeppelin zipper zombie zoo zucchini`.split(/\s+/).filter(Boolean);
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let n = 10, words = [], idx = 0, studyStart = 0, studyMs = 0, recallStart = 0, tick = null, rtick = null;
+let sessions = [];            // newest first
+let range = 5, sizeFilter = 0;
+
+/* ---------- formatting ---------- */
+function fmt(ms){ const s=Math.round(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+function fmtLong(ms){ const m=Math.round(ms/60000); if(m<60) return m+' min'; return Math.floor(m/60)+' h '+(m%60)+' min'; }
+function secs(ms){ return (ms/1000).toFixed(1)+'s'; }
+function pct(x){ return Math.round(x*100)+'%'; }
+function when(ts){ return new Date(ts).toLocaleString(undefined,{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function dayKey(ts){ const d=new Date(ts); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function accColor(a){ return a>=0.9?'var(--good)':a>=0.6?'var(--mid)':'var(--bad)'; }
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active', s.id===id)); window.scrollTo(0,0); }
+function shuffle(a){ a=[...a]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+/* ---------- storage: synced per-user db, with on-device fallback ---------- */
+const LS = 'nounSessions_v2';
+function lsLoad(){ try{ return JSON.parse(localStorage.getItem(LS)||'[]'); }catch(e){ return []; } }
+function lsSave(){ try{ localStorage.setItem(LS, JSON.stringify(sessions.slice(0,500))); }catch(e){} }
+function setSessions(list){ sessions = list.slice().sort((a,b)=>b.ts-a.ts); renderQuick(); if($('stats').classList.contains('active')) renderStats(); }
+
+setSessions(lsLoad());
+
+$('syncNote').textContent = 'Sessions are saved on this device.';
+
+async function saveSession(rec){
+  const id = 's' + rec.ts + '-' + Math.random().toString(36).slice(2,7);
+  const withId = {id, ...rec};
+  // optimistic local add
+  setSessions([withId, ...sessions]);
+  lsSave(); $('saveNote').textContent = 'Session saved.';
+}
+async function deleteSession(id){
+  setSessions(sessions.filter(s=>s.id!==id));
+  lsSave();
+}
+
+/* ---------- stats ---------- */
+function summarize(list){
+  if(!list.length) return null;
+  const acc = list.map(s=>s.correct/s.n);
+  const spw = list.map(s=>s.studyMs/s.n);
+  const sum = a => a.reduce((x,y)=>x+y,0);
+  return {
+    count:list.length,
+    avgAcc: sum(acc)/list.length,
+    bestAcc: Math.max(...acc),
+    avgStudy: sum(list.map(s=>s.studyMs))/list.length,
+    avgRecall: sum(list.map(s=>s.recallMs||0))/list.length,
+    avgSpw: sum(spw)/list.length,
+    bestSpw: Math.min(...list.filter(s=>s.correct===s.n).map(s=>s.studyMs/s.n).concat([Infinity])),
+    perfect: list.filter(s=>s.correct===s.n).length,
+    totalMs: sum(list.map(s=>s.studyMs+(s.recallMs||0))),
+    words: sum(list.map(s=>s.correct)),
+  };
+}
+function streak(){
+  const days = new Set(sessions.map(s=>dayKey(s.ts)));
+  let d = new Date(), c = 0;
+  if(!days.has(dayKey(d))) d.setDate(d.getDate()-1); // streak still alive if you practiced yesterday
+  while(days.has(dayKey(d))){ c++; d.setDate(d.getDate()-1); }
+  return c;
+}
+function renderQuick(){
+  if(!sessions.length){ $('quick').innerHTML = 'No sessions yet — your first one starts the log.'; return; }
+  const all = summarize(sessions), last = sessions[0], st = streak();
+  $('quick').innerHTML =
+    `Last: <b>${last.correct}/${last.n}</b> in <b>${fmt(last.studyMs)}</b> · ${when(last.ts)}<br>`+
+    `All time: <b>${all.count}</b> sessions · <b>${pct(all.avgAcc)}</b> avg accuracy<br>`+
+    `Streak: <b>${st} day${st===1?'':'s'}</b> · practice time <b>${fmtLong(all.totalMs)}</b>`;
+}
+function tile(k,v,d,cls){ return `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div>${d?`<div class="d ${cls||''}">${d}</div>`:''}</div>`; }
+
+function chart(list, valueFn, maxV, colorFn, label, fmtV){
+  const data = list.slice().reverse(); // chronological
+  const W=320,H=110,pad=4, bw = Math.max(3, Math.min(26, (W-pad*2)/data.length - 3));
+  const step = (W-pad*2)/data.length;
+  const bars = data.map((s,i)=>{
+    const v = valueFn(s), h = Math.max(2, (v/maxV)*(H-8));
+    return `<rect x="${pad+i*step+(step-bw)/2}" y="${H-h}" width="${bw}" height="${h}" rx="2" fill="${colorFn(s)}"><title>${esc(fmtV(v))}</title></rect>`;
+  }).join('');
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg>
+    <div class="cap"><span>${label}</span><span>oldest → newest</span></div></div>`;
+}
+
+function renderStats(){
+  let list = sizeFilter ? sessions.filter(s=>s.n===sizeFilter) : sessions;
+  const scoped = range ? list.slice(0,range) : list;
+  const body = $('statsBody');
+  if(!scoped.length){ body.innerHTML = `<div class="empty">No sessions${sizeFilter?` with ${sizeFilter} words`:''} yet.</div>`; return; }
+
+  const S = summarize(scoped), ALL = summarize(list);
+  // compare against the window before this one
+  const prev = range ? list.slice(range, range*2) : [];
+  const P = prev.length ? summarize(prev) : null;
+  const accD = P ? (S.avgAcc-P.avgAcc) : null;
+  const spwD = P ? (S.avgSpw-P.avgSpw) : null;
+
+  let h = `<h2>${range?`Last ${scoped.length}`:'All'} session${scoped.length===1?'':'s'}${sizeFilter?` · ${sizeFilter} words`:''}</h2><div class="tiles">`;
+  h += tile('Avg accuracy', pct(S.avgAcc), accD===null?'':`${accD>=0?'▲':'▼'} ${Math.abs(Math.round(accD*100))} pts vs previous ${prev.length}`, accD>=0?'up':'down');
+  h += tile('Avg sec / word', secs(S.avgSpw), spwD===null?'':`${spwD<=0?'▲ faster':'▼ slower'} by ${secs(Math.abs(spwD))}`, spwD<=0?'up':'down');
+  h += tile('Avg study time', fmt(S.avgStudy));
+  h += tile('Avg recall time', fmt(S.avgRecall));
+  h += tile('Best accuracy', pct(S.bestAcc));
+  h += tile('Fastest perfect', isFinite(S.bestSpw)?secs(S.bestSpw)+'/word':'—');
+  h += tile('Perfect sessions', `${S.perfect} / ${S.count}`);
+  h += tile('Practice time', fmtLong(S.totalMs));
+  h += `</div>`;
+
+  h += `<h2>Trends</h2>`;
+  h += chart(scoped, s=>s.correct/s.n, 1, s=>accColor(s.correct/s.n), 'Accuracy per session', v=>pct(v));
+  h += `<div style="height:10px"></div>`;
+  const maxSpw = Math.max(...scoped.map(s=>s.studyMs/s.n));
+  h += chart(scoped, s=>s.studyMs/s.n, maxSpw, ()=>'var(--accent)', 'Seconds per word (lower is better)', v=>secs(v));
+
+  h += `<h2>All-time${sizeFilter?` · ${sizeFilter} words`:''}</h2><div class="tiles">`;
+  h += tile('Sessions', ALL.count);
+  h += tile('Day streak', streak());
+  h += tile('Words recalled', ALL.words);
+  h += tile('Total practice', fmtLong(ALL.totalMs));
+  h += `</div>`;
+
+  h += `<h2>Session log</h2><ul class="log">`;
+  h += scoped.map(s=>`<li>
+      <span class="when"><span class="dot" style="background:${accColor(s.correct/s.n)}"></span>${esc(when(s.ts))}</span>
+      <span class="sc">${s.correct}/${s.n}</span>
+      <span class="meta">Study ${fmt(s.studyMs)} · Recall ${fmt(s.recallMs||0)} · ${secs(s.studyMs/s.n)}/word</span>
+      <button class="del" data-del="${esc(s.id)}">Delete</button>
+    </li>`).join('');
+  h += `</ul>`;
+  body.innerHTML = h;
+}
+$('statsBody').addEventListener('click', e=>{
+  const b = e.target.closest('[data-del]'); if(!b) return;
+  if(b.dataset.armed){ deleteSession(b.dataset.del); }
+  else { b.dataset.armed = '1'; b.textContent = 'Tap again to delete'; b.style.color = 'var(--bad)'; }
+});
+$('rangeChips').addEventListener('click', e=>{
+  const b=e.target.closest('.chip'); if(!b) return;
+  $('rangeChips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', c===b));
+  range = +b.dataset.r; renderStats();
+});
+$('sizeChips').addEventListener('click', e=>{
+  const b=e.target.closest('.chip'); if(!b) return;
+  $('sizeChips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', c===b));
+  sizeFilter = +b.dataset.s; renderStats();
+});
+let statsReturn = 'setup';
+function openStats(from){ statsReturn = from; renderStats(); show('stats'); }
+$('statsBtn').onclick = ()=>openStats('setup');
+$('toStatsBtn').onclick = ()=>openStats('results');
+$('statsBack').onclick = ()=>show(statsReturn);
+
+/* ---------- study flow ---------- */
+$('counts').addEventListener('click', e=>{
+  const b = e.target.closest('.chip'); if(!b) return;
+  $('counts').querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', c===b));
+  n = +b.dataset.n;
+});
+
+function startStudy(newWords){
+  if(newWords) words = shuffle(NOUNS).slice(0,n);
+  idx = 0; studyStart = Date.now();
+  clearInterval(tick); clearInterval(rtick);
+  tick = setInterval(()=>{ $('timer').textContent = fmt(Date.now()-studyStart); }, 250);
+  $('timer').textContent = '0:00';
+  render(); show('study');
+}
+function render(){
+  $('word').textContent = words[idx];
+  $('cardNum').textContent = idx+1;
+  $('count').textContent = `${idx+1} / ${words.length}`;
+  $('bar').style.width = ((idx+1)/words.length*100)+'%';
+  $('prevBtn').disabled = idx===0; $('prevBtn').style.opacity = idx===0 ? .4 : 1;
+  $('nextBtn').textContent = idx===words.length-1 ? 'Done ✓' : 'Next →';
+}
+function finishStudy(){
+  clearInterval(tick); studyMs = Date.now()-studyStart;
+  $('recallSub').textContent = `Studied ${words.length} words in ${fmt(studyMs)}. Walk your palace and type them in order, one per line.`;
+  $('answers').value = '';
+  recallStart = Date.now(); $('rtimer').textContent = '0:00';
+  rtick = setInterval(()=>{ $('rtimer').textContent = fmt(Date.now()-recallStart); }, 250);
+  show('recall');
+}
+function go(dir){
+  if(dir>0){ if(idx===words.length-1){ finishStudy(); return; } idx++; }
+  else { if(idx===0) return; idx--; }
+  render();
+}
+
+// swipe
+const card = $('card'), stage = $('stage');
+let sx=0, dx=0, dragging=false;
+stage.addEventListener('pointerdown', e=>{ dragging=true; sx=e.clientX; dx=0; card.classList.remove('anim'); try{stage.setPointerCapture(e.pointerId);}catch(_){} });
+stage.addEventListener('pointermove', e=>{ if(!dragging) return; dx=e.clientX-sx; card.style.transform=`translateX(${dx}px) rotate(${dx/18}deg)`; });
+function endDrag(){
+  if(!dragging) return; dragging=false; card.classList.add('anim');
+  const TH = 70;
+  if(dx < -TH || dx > TH){
+    const dir = dx<0 ? 1 : -1;
+    if(dir===-1 && idx===0){ card.style.transform=''; return; }
+    const out = dx<0 ? -1 : 1;
+    card.style.transform = `translateX(${out*500}px) rotate(${out*25}deg)`; card.style.opacity='0';
+    setTimeout(()=>{
+      go(dir);
+      if(!$('study').classList.contains('active')){ card.style.transform=''; card.style.opacity='1'; return; }
+      card.classList.remove('anim');
+      card.style.transform=`translateX(${-out*160}px)`; card.style.opacity='0';
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{ card.classList.add('anim'); card.style.transform=''; card.style.opacity='1'; }));
+    }, 180);
+  } else { card.style.transform=''; }
+}
+stage.addEventListener('pointerup', endDrag);
+stage.addEventListener('pointercancel', endDrag);
+document.addEventListener('keydown', e=>{
+  if(!$('study').classList.contains('active')) return;
+  if(e.key==='ArrowRight' || e.key===' ') go(1);
+  if(e.key==='ArrowLeft') go(-1);
+});
+
+$('startBtn').onclick = ()=>startStudy(true);
+$('nextBtn').onclick = ()=>go(1);
+$('prevBtn').onclick = ()=>go(-1);
+$('quitBtn').onclick = ()=>{ clearInterval(tick); show('setup'); };
+
+/* ---------- results + session log ---------- */
+function norm(s){ return s.trim().toLowerCase().replace(/[^a-z]/g,''); }
+function showResults(given, record){
+  clearInterval(rtick);
+  const recallMs = Date.now()-recallStart;
+  let correct = 0;
+  $('resultList').innerHTML = words.map((w,i)=>{
+    const g = given[i] || '';
+    const ok = norm(g)===norm(w);
+    if(ok) correct++;
+    return `<li class="${ok?'ok':'miss'}"><span>${i+1}. <b>${esc(w)}</b></span><span class="you">${ok?'✓':(g?'you: '+esc(g):'—')}</span></li>`;
+  }).join('');
+  const acc = correct/words.length, spw = studyMs/words.length;
+  $('score').textContent = `${correct} / ${words.length}`;
+  $('score').style.color = accColor(acc);
+  $('saveNote').textContent = '';
+
+  // compare with your previous sessions of the same size
+  const same = sessions.filter(s=>s.n===words.length).slice(0,10);
+  const P = summarize(same);
+  let t = '';
+  t += tile('Accuracy', pct(acc), P?`${acc>=P.avgAcc?'▲':'▼'} avg ${pct(P.avgAcc)}`:'first of this size', P?(acc>=P.avgAcc?'up':'down'):'');
+  t += tile('Sec / word', secs(spw), P?`${spw<=P.avgSpw?'▲ faster':'▼ slower'} · avg ${secs(P.avgSpw)}`:'', P?(spw<=P.avgSpw?'up':'down'):'');
+  t += tile('Study time', fmt(studyMs), P?`avg ${fmt(P.avgStudy)}`:'');
+  t += tile('Recall time', record?fmt(recallMs):'—', P&&record?`avg ${fmt(P.avgRecall)}`:'');
+  t += tile('Session total', fmt(studyMs+(record?recallMs:0)));
+  t += tile('Finished', new Date().toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));
+  $('sessionTiles').innerHTML = t;
+  $('scoreSub').textContent = record
+    ? `${words.length} words · in order${P?` · compared with your last ${same.length} ${words.length}-word session${same.length===1?'':'s'}`:''}`
+    : 'List revealed — this session was not logged.';
+
+  if(record) saveSession({ts:Date.now(), n:words.length, correct, studyMs, recallMs});
+  show('results');
+}
+$('checkBtn').onclick = ()=>{
+  const given = $('answers').value.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
+  showResults(given, true);
+};
+$('revealBtn').onclick = ()=>showResults([], false);
+$('againBtn').onclick = ()=>startStudy(true);
+$('sameBtn').onclick = ()=>startStudy(false);
+$('homeBtn').onclick = ()=>show('setup');
+
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
+try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
+</script>
+</body>
+</html>
