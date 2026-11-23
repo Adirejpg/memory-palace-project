@@ -97,6 +97,8 @@
   .log .sc{font-weight:800;font-size:1.15rem;text-align:right;font-variant-numeric:tabular-nums}
   .log .meta{font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
   .log .del{background:none;border:none;color:var(--muted);font-size:.8rem;cursor:pointer;padding:4px;justify-self:end}
+  .acts{justify-self:end;display:flex;gap:2px}
+  .tag{font-size:.7rem;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:0 5px;margin-left:6px}
   .empty{color:var(--muted);text-align:center;padding:30px 0}
   .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
 </style>
@@ -121,6 +123,7 @@
 
   <div class="spacer"></div>
   <button class="btn primary" id="startBtn">Start</button>
+  <button class="btn ghost" id="olderBtn">↺ Try an older set</button>
   <button class="btn ghost" id="statsBtn">📊 Stats &amp; session log</button>
   <div class="note" id="syncNote"></div>
 </section>
@@ -174,6 +177,14 @@
   <button class="btn ghost" id="homeBtn">Home</button>
 </section>
 
+<!-- OLDER SETS -->
+<section class="screen" id="older">
+  <button class="back" id="olderBack">← Back</button>
+  <h1>Older sets</h1>
+  <p class="sub">Re-run a set you've already done to see how much stuck. Longer gaps are a better test.</p>
+  <div id="olderBody"></div>
+</section>
+
 <!-- STATS -->
 <section class="screen" id="stats">
   <button class="back" id="statsBack">← Back</button>
@@ -203,7 +214,7 @@ const NOUNS = `aardvark accordion acorn acrobat airplane airship alligator almon
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let n = 10, words = [], idx = 0, studyStart = 0, studyMs = 0, recallStart = 0, tick = null, rtick = null;
+let n = 10, words = [], isRetry = false, idx = 0, studyStart = 0, studyMs = 0, recallStart = 0, tick = null, rtick = null;
 let sessions = [];            // newest first
 let range = 5, sizeFilter = 0;
 
@@ -329,13 +340,15 @@ function renderStats(){
   h += scoped.map(s=>`<li>
       <span class="when"><span class="dot" style="background:${accColor(s.correct/s.n)}"></span>${esc(when(s.ts))}</span>
       <span class="sc">${s.correct}/${s.n}</span>
-      <span class="meta">Study ${fmt(s.studyMs)} · Recall ${fmt(s.recallMs||0)} · ${secs(s.studyMs/s.n)}/word</span>
-      <button class="del" data-del="${esc(s.id)}">Delete</button>
+      <span class="meta">Study ${fmt(s.studyMs)} · Recall ${fmt(s.recallMs||0)} · ${secs(s.studyMs/s.n)}/word${s.retry?'<span class="tag">retry</span>':''}</span>
+      <span class="acts">${Array.isArray(s.words)?`<button class="del" data-retry="${esc(s.id)}" style="color:var(--accent)">↺ Retry</button>`:''}<button class="del" data-del="${esc(s.id)}">Delete</button></span>
     </li>`).join('');
   h += `</ul>`;
   body.innerHTML = h;
 }
 $('statsBody').addEventListener('click', e=>{
+  const r = e.target.closest('[data-retry]');
+  if(r){ const s = sessions.find(x=>x.id===r.dataset.retry); if(s) retrySet(s.words); return; }
   const b = e.target.closest('[data-del]'); if(!b) return;
   if(b.dataset.armed){ deleteSession(b.dataset.del); }
   else { b.dataset.armed = '1'; b.textContent = 'Tap again to delete'; b.style.color = 'var(--bad)'; }
@@ -356,6 +369,49 @@ $('statsBtn').onclick = ()=>openStats('setup');
 $('toStatsBtn').onclick = ()=>openStats('results');
 $('statsBack').onclick = ()=>show(statsReturn);
 
+/* ---------- older sets ---------- */
+function retrySet(ws){ if(!Array.isArray(ws) || !ws.length) return; words = ws.slice(); startStudy(false); }
+function ago(ts){
+  const d = Math.floor((Date.now()-ts)/86400000);
+  if(d<=0) return 'today'; if(d===1) return 'yesterday'; if(d<30) return d+' days ago';
+  const m = Math.floor(d/30); return m+(m===1?' month ago':' months ago');
+}
+let olderSets = [];
+function renderOlder(){
+  const groups = new Map();
+  sessions.forEach(s=>{               // sessions are newest first
+    if(!Array.isArray(s.words) || !s.words.length) return;
+    const k = s.words.join('|');
+    if(!groups.has(k)) groups.set(k, {words:s.words, attempts:[]});
+    groups.get(k).attempts.push(s);
+  });
+  olderSets = [...groups.values()];
+  if(!olderSets.length){
+    $('olderBody').innerHTML = '<div class="empty">No saved sets yet. Every session you finish from now on is saved here.</div>';
+    return;
+  }
+  let h = `<button class="btn primary" id="randomOlder" style="margin:0 0 14px">🎲 Random older set</button><ul class="log">`;
+  h += olderSets.map((g,i)=>{
+    const first = g.attempts[g.attempts.length-1], last = g.attempts[0];
+    const best = Math.max(...g.attempts.map(a=>a.correct));
+    return `<li>
+      <span class="when"><span class="dot" style="background:${accColor(last.correct/last.n)}"></span>${esc(when(first.ts))} · ${ago(last.ts)}</span>
+      <span class="sc">${g.words.length}w</span>
+      <span class="meta">Last ${last.correct}/${last.n} · best ${best}/${g.words.length} · ${g.attempts.length} attempt${g.attempts.length===1?'':'s'}</span>
+      <span class="acts"><button class="del" data-set="${i}" style="color:var(--accent)">↺ Retry</button></span>
+    </li>`;
+  }).join('');
+  h += `</ul>`;
+  $('olderBody').innerHTML = h;
+}
+$('olderBody').addEventListener('click', e=>{
+  if(e.target.closest('#randomOlder')){ const g = olderSets[Math.floor(Math.random()*olderSets.length)]; if(g) retrySet(g.words); return; }
+  const b = e.target.closest('[data-set]'); if(!b) return;
+  const g = olderSets[+b.dataset.set]; if(g) retrySet(g.words);
+});
+$('olderBtn').onclick = ()=>{ renderOlder(); show('older'); };
+$('olderBack').onclick = ()=>show('setup');
+
 /* ---------- study flow ---------- */
 $('counts').addEventListener('click', e=>{
   const b = e.target.closest('.chip'); if(!b) return;
@@ -364,7 +420,7 @@ $('counts').addEventListener('click', e=>{
 });
 
 function startStudy(newWords){
-  if(newWords) words = shuffle(NOUNS).slice(0,n);
+  if(newWords){ words = shuffle(NOUNS).slice(0,n); isRetry = false; } else isRetry = true;
   idx = 0; studyStart = Date.now();
   clearInterval(tick); clearInterval(rtick);
   tick = setInterval(()=>{ $('timer').textContent = fmt(Date.now()-studyStart); }, 250);
@@ -457,10 +513,10 @@ function showResults(given, record){
   t += tile('Finished', new Date().toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));
   $('sessionTiles').innerHTML = t;
   $('scoreSub').textContent = record
-    ? `${words.length} words · in order${P?` · compared with your last ${same.length} ${words.length}-word session${same.length===1?'':'s'}`:''}`
+    ? `${words.length} words${isRetry?' · retry':''} · in order${P?` · compared with your last ${same.length} ${words.length}-word session${same.length===1?'':'s'}`:''}`
     : 'List revealed — this session was not logged.';
 
-  if(record) saveSession({ts:Date.now(), n:words.length, correct, studyMs, recallMs});
+  if(record) saveSession({ts:Date.now(), n:words.length, correct, studyMs, recallMs, words:words.slice(), retry:isRetry});
   show('results');
 }
 $('checkBtn').onclick = ()=>{
